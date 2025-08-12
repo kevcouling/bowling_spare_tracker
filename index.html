@@ -806,13 +806,16 @@
                     const targetPinSelect = document.getElementById('target-pin');
                     const shotTypeSelect = document.getElementById('shot-type');
                     
-                    if (mostRecentBest.rawData['Target Pin']) {
-                        targetPinSelect.value = mostRecentBest.rawData['Target Pin'];
-                    }
-                    
-                    if (mostRecentBest.rawData['Shot Type']) {
-                        shotTypeSelect.value = mostRecentBest.rawData['Shot Type'];
-                    }
+                    // Make sure the select options are populated first
+                    setTimeout(() => {
+                        if (mostRecentBest.rawData['Target Pin']) {
+                            targetPinSelect.value = mostRecentBest.rawData['Target Pin'];
+                        }
+                        
+                        if (mostRecentBest.rawData['Shot Type']) {
+                            shotTypeSelect.value = mostRecentBest.rawData['Shot Type'];
+                        }
+                    }, 100);
                 } else {
                     // Has attempts but no success
                     attemptMessageDiv.className = 'attempt-message';
