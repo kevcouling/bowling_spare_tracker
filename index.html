@@ -43,6 +43,7 @@
         .container {
             max-width: 400px;
             margin: 0 auto;
+            padding: 0 10px;
         }
 
         .header {
@@ -300,7 +301,7 @@
         <div class="header">
             <img src="https://kevcouling.github.io/bowling_spare_tracker/icon.png" alt="" class="header-icon">
             <h1>Spare Tracker</h1>
-            <div class="version">v2.1 - 2024-08-12</div>
+            <div class="version">v2.2 - 2024-08-12</div>
             <button class="settings-btn" id="settings-btn" title="Settings">⚙️</button>
         </div>
 
@@ -443,12 +444,16 @@
             // Check if Airtable is configured
             if (!airtableConfig.baseId || !airtableConfig.apiKey) {
                 showConfigSection();
+                return;
             }
 
             // Load saved config into form
             document.getElementById('base-id').value = airtableConfig.baseId;
             document.getElementById('api-key').value = airtableConfig.apiKey;
 
+            // Make sure we start on the pin selection screen
+            showSection('pin-selection');
+            
             initializePinSelection();
             initializeEventListeners();
         });
@@ -764,10 +769,13 @@
         let currentAttemptData = null;
 
         function setupRecordingSection() {
-            if (!currentAttemptData) return;
-
             const spareStatsDiv = document.getElementById('spare-stats');
             const attemptMessageDiv = document.getElementById('attempt-message');
+            
+            // Check if elements exist before trying to use them
+            if (!spareStatsDiv || !attemptMessageDiv || !currentAttemptData) {
+                return;
+            }
             
             const totalAttempts = currentAttemptData.length;
             
@@ -806,20 +814,22 @@
                     attemptMessageDiv.textContent = `Your best result is ${bestSuccessPercentage}%. Here's how you did it:`;
                     
                     // Prefill with the most recent attempt that achieved the best success rate
-                    document.getElementById('board-position').value = mostRecentBest.rawData['Standing Board'] || '';
-                    document.getElementById('target-arrow').value = mostRecentBest.rawData['Target at arrows'] || '';
+                    const boardInput = document.getElementById('board-position');
+                    const arrowInput = document.getElementById('target-arrow');
                     
-                    // Set select fields
-                    const targetPinSelect = document.getElementById('target-pin');
-                    const shotTypeSelect = document.getElementById('shot-type');
+                    if (boardInput) boardInput.value = mostRecentBest.rawData['Standing Board'] || '';
+                    if (arrowInput) arrowInput.value = mostRecentBest.rawData['Target at arrows'] || '';
                     
-                    // Make sure the select options are populated first
+                    // Set select fields with delay to ensure they're populated
                     setTimeout(() => {
-                        if (mostRecentBest.rawData['Target Pin']) {
+                        const targetPinSelect = document.getElementById('target-pin');
+                        const shotTypeSelect = document.getElementById('shot-type');
+                        
+                        if (targetPinSelect && mostRecentBest.rawData['Target Pin']) {
                             targetPinSelect.value = mostRecentBest.rawData['Target Pin'];
                         }
                         
-                        if (mostRecentBest.rawData['Shot Type']) {
+                        if (shotTypeSelect && mostRecentBest.rawData['Shot Type']) {
                             shotTypeSelect.value = mostRecentBest.rawData['Shot Type'];
                         }
                     }, 100);
