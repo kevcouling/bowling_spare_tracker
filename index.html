@@ -765,7 +765,7 @@
             const totalAttempts = currentAttemptData.length;
             
             if (totalAttempts === 0) {
-                // First attempt
+                // First attempt - no previous data
                 spareStatsDiv.innerHTML = `
                     <div class="stat-line">Attempts at <span class="stat-value">${currentSpare}</span>: <span class="stat-value">0</span></div>
                     <div class="stat-line">Best result: <span class="stat-value">No previous attempts</span></div>
@@ -778,38 +778,44 @@
                 clearForm();
             } else {
                 // Has previous attempts
-                const bestSuccess = Math.max(...currentAttemptData.map(a => a.successPercentage));
-                const latestFullSuccess = currentAttemptData.find(a => a.success);
-                const bestResultText = latestFullSuccess ? 
-                    `${bestSuccess}% on ${latestFullSuccess.date}` : 
-                    `${bestSuccess}% (no full success yet)`;
+                const bestSuccessPercentage = Math.max(...currentAttemptData.map(a => a.successPercentage));
+                const bestAttempts = currentAttemptData.filter(a => a.successPercentage === bestSuccessPercentage);
+                const mostRecentBest = bestAttempts[0]; // Already sorted by date DESC
+                
+                // Find latest date where Success was 100% for display
+                const fullSuccessAttempt = currentAttemptData.find(a => a.success);
+                const bestResultText = fullSuccessAttempt ? 
+                    `${bestSuccessPercentage}% on ${fullSuccessAttempt.date}` : 
+                    `${bestSuccessPercentage}% (no full success yet)`;
                 
                 spareStatsDiv.innerHTML = `
                     <div class="stat-line">Attempts at <span class="stat-value">${currentSpare}</span>: <span class="stat-value">${totalAttempts}</span></div>
                     <div class="stat-line">Best result: <span class="stat-value">${bestResultText}</span></div>
                 `;
                 
-                attemptMessageDiv.className = 'attempt-message';
-                
-                if (latestFullSuccess) {
-                    // Prefill with most recent successful attempt
-                    attemptMessageDiv.textContent = `Prefilled with your most recent successful approach. Modify as needed.`;
+                if (bestSuccessPercentage > 0) {
+                    // Has some success - prefill with best attempt
+                    attemptMessageDiv.className = 'attempt-message';
+                    attemptMessageDiv.textContent = `Your best result is ${bestSuccessPercentage}%. Here's how you did it:`;
                     
-                    document.getElementById('board-position').value = latestFullSuccess.rawData['Standing Board'] || '';
-                    document.getElementById('target-arrow').value = latestFullSuccess.rawData['Target at arrows'] || '';
+                    // Prefill with the most recent attempt that achieved the best success rate
+                    document.getElementById('board-position').value = mostRecentBest.rawData['Standing Board'] || '';
+                    document.getElementById('target-arrow').value = mostRecentBest.rawData['Target at arrows'] || '';
                     
                     // Set select fields
                     const targetPinSelect = document.getElementById('target-pin');
                     const shotTypeSelect = document.getElementById('shot-type');
                     
-                    if (latestFullSuccess.rawData['Target Pin']) {
-                        targetPinSelect.value = latestFullSuccess.rawData['Target Pin'];
+                    if (mostRecentBest.rawData['Target Pin']) {
+                        targetPinSelect.value = mostRecentBest.rawData['Target Pin'];
                     }
                     
-                    if (latestFullSuccess.rawData['Shot Type']) {
-                        shotTypeSelect.value = latestFullSuccess.rawData['Shot Type'];
+                    if (mostRecentBest.rawData['Shot Type']) {
+                        shotTypeSelect.value = mostRecentBest.rawData['Shot Type'];
                     }
                 } else {
+                    // Has attempts but no success
+                    attemptMessageDiv.className = 'attempt-message';
                     attemptMessageDiv.textContent = `No previous successful attempts. Try a new approach!`;
                     clearForm();
                 }
