@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bowling Spare Tracker</title>
+    
+    <!-- App Icons - Edge-friendly approach -->
+    <link rel="shortcut icon" href="https://em-content.zobj.net/thumbs/240/apple/354/bowling_1f3b3.png">
+    <link rel="icon" href="https://em-content.zobj.net/thumbs/240/apple/354/bowling_1f3b3.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://em-content.zobj.net/thumbs/240/apple/354/bowling_1f3b3.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://em-content.zobj.net/thumbs/240/apple/354/bowling_1f3b3.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="https://em-content.zobj.net/thumbs/240/apple/354/bowling_1f3b3.png">
+    
+    <!-- Microsoft Edge specific -->
+    <meta name="msapplication-TileImage" content="https://em-content.zobj.net/thumbs/240/apple/354/bowling_1f3b3.png">
+    <meta name="msapplication-TileColor" content="#1a1a2e">
+    <meta name="msapplication-config" content="none">
+    
+    <!-- PWA settings -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Spare Tracker">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Spare Tracker">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a2e;
+            color: white;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .header h1 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .settings-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+
+        .settings-btn:hover {
+            background-color: rgba(76, 175, 80, 0.2);
+        }
+
+        .section {
+            background-color: #16213e;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .section.hidden {
+            display: none;
+        }
+
+        .section h2 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        /* Pin Layout */
+        .pin-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .pin-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pin {
+            width: 35px;
+            height: 50px;
+            background-color: #ffffff;
+            border: 2px solid #333;
+            border-radius: 5px 5px 15px 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #333;
+            font-size: 12px;
+        }
+
+        .pin.selected {
+            background-color: #ff4444;
+            color: white;
+            border-color: #cc0000;
+        }
+
+        .pin:hover {
+            transform: scale(1.1);
+        }
+
+        /* Current spare display */
+        .current-spare {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 15px;
+        }
+
+        /* Previous attempts */
+        .attempts-list {
+            background-color: #0f1419;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .attempt-item {
+            background-color: #1a1a2e;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .attempt-item.failed {
+            border-left-color: #ff4444;
+        }
+
+        .attempt-details {
+            font-size: 12px;
+            color: #ccc;
+            margin-top: 5px;
+        }
+
+        /* Form elements */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #0f1419;
+            color: white;
+            font-size: 16px;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: 2px solid #4CAF50;
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #45a049;
+        }
+
+        .btn-secondary {
+            background-color: #666;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #555;
+        }
+
+        .btn:disabled {
+            background-color: #333;
+            cursor: not-allowed;
+        }
+
+        /* Status messages */
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .status.success {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .status.error {
+            background-color: #ff4444;
+            color: white;
+        }
+
+        .status.warning {
+            background-color: #ff9800;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎳 Spare Tracker</h1>
+            <p>Select your spare configuration</p>
+            <button class="settings-btn" id="settings-btn" title="Settings">⚙️</button>
+        </div>
+
+        <!-- Pin Selection Section -->
+        <div class="section" id="pin-selection">
+            <h2>Select Standing Pins</h2>
+            <div class="pin-area">
+                <!-- Row 1: Pin 7, 8, 9, 10 -->
+                <div class="pin-row">
+                    <div class="pin" data-pin="7">7</div>
+                    <div class="pin" data-pin="8">8</div>
+                    <div class="pin" data-pin="9">9</div>
+                    <div class="pin" data-pin="10">10</div>
+                </div>
+                <!-- Row 2: Pin 4, 5, 6 -->
+                <div class="pin-row">
+                    <div class="pin" data-pin="4">4</div>
+                    <div class="pin" data-pin="5">5</div>
+                    <div class="pin" data-pin="6">6</div>
+                </div>
+                <!-- Row 3: Pin 2, 3 -->
+                <div class="pin-row">
+                    <div class="pin" data-pin="2">2</div>
+                    <div class="pin" data-pin="3">3</div>
+                </div>
+                <!-- Row 4: Pin 1 -->
+                <div class="pin-row">
+                    <div class="pin" data-pin="1">1</div>
+                </div>
+            </div>
+            
+            <div class="current-spare" id="current-spare">No pins selected</div>
+            
+            <button class="btn btn-primary" id="check-history" disabled>Check Previous Attempts</button>
+            <button class="btn btn-secondary" id="clear-pins">Clear All</button>
+        </div>
+
+        <!-- Previous Attempts Section -->
+        <div class="section hidden" id="history-section">
+            <h2>Previous Attempts</h2>
+            <div class="current-spare" id="history-spare"></div>
+            <div id="status-message"></div>
+            <div class="attempts-list" id="attempts-list">
+                <!-- Previous attempts will be loaded here -->
+            </div>
+            <button class="btn btn-primary" id="record-attempt">Record New Attempt</button>
+            <button class="btn btn-secondary" id="back-to-pins">Select Different Spare</button>
+        </div>
+
+        <!-- Recording Section -->
+        <div class="section hidden" id="recording-section">
+            <h2>Record Your Attempt</h2>
+            <div class="current-spare" id="recording-spare"></div>
+            
+            <div class="form-group">
+                <label for="board-position">Standing Board (1-39)</label>
+                <input type="number" id="board-position" min="1" max="39" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="target-arrow">Target at arrows (1-39)</label>
+                <input type="number" id="target-arrow" min="1" max="39" placeholder="Leave blank for no specific arrow">
+            </div>
+            
+            <div class="form-group">
+                <label for="target-pin">Target Pin</label>
+                <select id="target-pin">
+                    <!-- Options will be populated dynamically based on selected spare -->
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="shot-type">Shot Type</label>
+                <select id="shot-type" required>
+                    <option value="">Select shot type</option>
+                    <option value="Straight">Straight</option>
+                    <option value="Hook">Hook</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="pin-hit">Pin Hit First</label>
+                <select id="pin-hit">
+                    <!-- Options will be populated dynamically based on selected spare -->
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="hit-location">Hit Location</label>
+                <select id="hit-location">
+                    <option value="">N/A</option>
+                    <option value="Left">Left</option>
+                    <option value="Middle">Middle</option>
+                    <option value="Right">Right</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="pins-knocked">Pins Knocked Down</label>
+                <input type="number" id="pins-knocked" min="0" required>
+            </div>
+            
+            <button class="btn btn-primary" id="save-attempt">Save Attempt</button>
+            <button class="btn btn-secondary" id="back-to-history">Back to History</button>
+        </div>
+
+        <!-- Configuration Section (Initially Hidden) -->
+        <div class="section hidden" id="config-section">
+            <h2>Airtable Configuration</h2>
+            <div class="form-group">
+                <label for="base-id">Base ID</label>
+                <input type="text" id="base-id" placeholder="appXXXXXXXXXXXXXX">
+            </div>
+            <div class="form-group">
+                <label for="api-key">API Key</label>
+                <input type="password" id="api-key" placeholder="keyXXXXXXXXXXXXXX">
+            </div>
+            <button class="btn btn-primary" id="save-config">Save Configuration</button>
+        </div>
+    </div>
+
+    <script>
+        // App state
+        let selectedPins = new Set();
+        let currentSpare = '';
+        let airtableConfig = {
+            baseId: localStorage.getItem('airtable_base_id') || '',
+            apiKey: localStorage.getItem('airtable_api_key') || ''
+        };
+
+        // DOM elements
+        const pins = document.querySelectorAll('.pin');
+        const currentSpareDisplay = document.getElementById('current-spare');
+        const checkHistoryBtn = document.getElementById('check-history');
+        const clearPinsBtn = document.getElementById('clear-pins');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if Airtable is configured
+            if (!airtableConfig.baseId || !airtableConfig.apiKey) {
+                showConfigSection();
+            }
+
+            // Load saved config into form
+            document.getElementById('base-id').value = airtableConfig.baseId;
+            document.getElementById('api-key').value = airtableConfig.apiKey;
+
+            initializePinSelection();
+            initializeEventListeners();
+        });
+
+        function initializePinSelection() {
+            pins.forEach(pin => {
+                pin.addEventListener('click', function() {
+                    const pinNumber = this.dataset.pin;
+                    
+                    if (selectedPins.has(pinNumber)) {
+                        selectedPins.delete(pinNumber);
+                        this.classList.remove('selected');
+                    } else {
+                        selectedPins.add(pinNumber);
+                        this.classList.add('selected');
+                    }
+                    
+                    updateCurrentSpareDisplay();
+                });
+            });
+        }
+
+        function updateCurrentSpareDisplay() {
+            if (selectedPins.size === 0) {
+                currentSpare = '';
+                currentSpareDisplay.textContent = 'No pins selected';
+                checkHistoryBtn.disabled = true;
+            } else {
+                // Sort pins numerically and create spare string
+                currentSpare = Array.from(selectedPins)
+                    .sort((a, b) => parseInt(a) - parseInt(b))
+                    .join('-');
+                currentSpareDisplay.textContent = `Current spare: ${currentSpare}`;
+                checkHistoryBtn.disabled = false;
+            }
+        }
+
+        function initializeEventListeners() {
+            // Pin selection
+            document.getElementById('clear-pins').addEventListener('click', clearAllPins);
+            document.getElementById('check-history').addEventListener('click', loadSpareHistory);
+
+            // Navigation
+            document.getElementById('back-to-pins').addEventListener('click', () => showSection('pin-selection'));
+            document.getElementById('record-attempt').addEventListener('click', () => showSection('recording-section'));
+            document.getElementById('back-to-history').addEventListener('click', () => showSection('history-section'));
+
+            // Form submission
+            document.getElementById('save-attempt').addEventListener('click', saveAttempt);
+
+            // Configuration
+            document.getElementById('save-config').addEventListener('click', saveConfiguration);
+            document.getElementById('settings-btn').addEventListener('click', showConfigSection);
+        }
+
+        function clearAllPins() {
+            selectedPins.clear();
+            pins.forEach(pin => pin.classList.remove('selected'));
+            updateCurrentSpareDisplay();
+        }
+
+        function showSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show target section
+            document.getElementById(sectionId).classList.remove('hidden');
+
+            // Update spare displays in other sections
+            if (currentSpare) {
+                document.getElementById('history-spare').textContent = `Spare: ${currentSpare}`;
+                document.getElementById('recording-spare').textContent = `Spare: ${currentSpare}`;
+                
+                // Populate dynamic select fields when showing recording section
+                if (sectionId === 'recording-section') {
+                    populateSpareBasedSelects();
+                    updatePinsKnockedMax();
+                }
+            }
+        }
+
+        function showConfigSection() {
+            showSection('config-section');
+        }
+
+        function saveConfiguration() {
+            const baseId = document.getElementById('base-id').value.trim();
+            const apiKey = document.getElementById('api-key').value.trim();
+
+            if (!baseId || !apiKey) {
+                showStatus('Please enter both Base ID and API Key', 'error', 'config-section');
+                return;
+            }
+
+            airtableConfig.baseId = baseId;
+            airtableConfig.apiKey = apiKey;
+
+            localStorage.setItem('airtable_base_id', baseId);
+            localStorage.setItem('airtable_api_key', apiKey);
+
+            showStatus('Configuration saved successfully!', 'success', 'config-section');
+            
+            setTimeout(() => {
+                showSection('pin-selection');
+            }, 1500);
+        }
+
+        async function loadSpareHistory() {
+            if (!airtableConfig.baseId || !airtableConfig.apiKey) {
+                showConfigSection();
+                return;
+            }
+
+            showSection('history-section');
+            showStatus('Loading previous attempts...', 'warning', 'history-section');
+
+            try {
+                const attempts = await loadFromAirtable(currentSpare);
+                displayAttempts(attempts);
+                
+                if (attempts.length > 0) {
+                    showStatus(`Found ${attempts.length} previous attempts`, 'success', 'history-section');
+                } else {
+                    showStatus('No previous attempts found for this spare', 'warning', 'history-section');
+                }
+            } catch (error) {
+                console.error('Error loading history:', error);
+                showStatus('Error loading history: ' + error.message, 'error', 'history-section');
+                
+                // Fall back to sample data if there's an error
+                showSampleHistory();
+            }
+        }
+
+        function showSampleHistory() {
+            // Sample data to show the interface working
+            const sampleAttempts = [
+                {
+                    date: '2024-08-10',
+                    board: 15,
+                    arrow: 'Arrow 2',
+                    target: 'Pin 3',
+                    shotType: 'Hook',
+                    pinHit: 'Pin 3',
+                    hitLocation: 'Middle',
+                    pinsKnocked: selectedPins.size,
+                    success: true
+                },
+                {
+                    date: '2024-08-08',
+                    board: 18,
+                    arrow: 'Arrow 3',
+                    target: 'Pin 7',
+                    shotType: 'Straight',
+                    pinHit: 'Pin 7',
+                    hitLocation: 'Right',
+                    pinsKnocked: selectedPins.size - 1,
+                    success: false
+                }
+            ];
+
+            displayAttempts(sampleAttempts);
+            showStatus(`Found ${sampleAttempts.length} previous attempts`, 'success', 'history-section');
+        }
+
+        function displayAttempts(attempts) {
+            const attemptsList = document.getElementById('attempts-list');
+            attemptsList.innerHTML = '';
+
+            if (attempts.length === 0) {
+                attemptsList.innerHTML = '<p style="text-align: center; color: #ccc;">No previous attempts found for this spare.</p>';
+                return;
+            }
+
+            attempts.forEach(attempt => {
+                const attemptDiv = document.createElement('div');
+                attemptDiv.className = `attempt-item ${attempt.success ? '' : 'failed'}`;
+                
+                const successIcon = attempt.success ? '✅' : '❌';
+                const resultText = attempt.success ? 'SUCCESS' : 'MISSED';
+                
+                attemptDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong>${successIcon} ${resultText}</strong>
+                        <span style="font-size: 12px; color: #ccc;">${attempt.date}</span>
+                    </div>
+                    <div class="attempt-details">
+                        Board: ${attempt.board} | Arrow: ${attempt.arrow} | Target: ${attempt.target}<br>
+                        Shot: ${attempt.shotType} | Hit: ${attempt.pinHit} (${attempt.hitLocation})<br>
+                        Knocked down: ${attempt.pinsKnocked}/${selectedPins.size}
+                    </div>
+                `;
+                
+                attemptsList.appendChild(attemptDiv);
+            });
+        }
+
+        async function saveAttempt() {
+            if (!validateForm()) return;
+
+            const formData = {
+                spare: currentSpare,
+                pinCount: selectedPins.size,
+                board: document.getElementById('board-position').value,
+                arrow: document.getElementById('target-arrow').value,
+                targetPin: document.getElementById('target-pin').value,
+                shotType: document.getElementById('shot-type').value,
+                pinHit: document.getElementById('pin-hit').value,
+                hitLocation: document.getElementById('hit-location').value,
+                pinsKnocked: parseInt(document.getElementById('pins-knocked').value)
+            };
+
+            try {
+                showStatus('Saving attempt...', 'warning', 'recording-section');
+                
+                await saveToAirtable(formData);
+                
+                showStatus('Attempt saved successfully!', 'success', 'recording-section');
+                
+                // Clear form and return to pin selection after a delay
+                setTimeout(() => {
+                    clearForm();
+                    clearAllPins();
+                    showSection('pin-selection');
+                }, 2000);
+                
+            } catch (error) {
+                showStatus('Error saving attempt: ' + error.message, 'error', 'recording-section');
+            }
+        }
+
+        function validateForm() {
+            const required = ['board-position', 'shot-type', 'pins-knocked'];
+            
+            for (let field of required) {
+                const element = document.getElementById(field);
+                if (!element.value.trim()) {
+                    showStatus(`Please fill in the ${element.previousElementSibling.textContent} field`, 'error', 'recording-section');
+                    element.focus();
+                    return false;
+                }
+            }
+            
+            // Validate pins knocked down doesn't exceed spare size
+            const pinsKnocked = parseInt(document.getElementById('pins-knocked').value);
+            const maxPins = selectedPins.size;
+            
+            if (pinsKnocked > maxPins) {
+                showStatus(`Pins knocked down (${pinsKnocked}) cannot exceed pins in spare (${maxPins})`, 'error', 'recording-section');
+                document.getElementById('pins-knocked').focus();
+                return false;
+            }
+            
+            return true;
+        }
+
+        function clearForm() {
+            document.getElementById('board-position').value = '';
+            document.getElementById('target-arrow').value = '';
+            document.getElementById('target-pin').value = '';
+            document.getElementById('shot-type').value = '';
+            document.getElementById('pin-hit').value = '';
+            document.getElementById('hit-location').value = '';
+            document.getElementById('pins-knocked').value = '';
+        }
+
+        function populateSpareBasedSelects() {
+            const selectedPinNumbers = Array.from(selectedPins).sort((a, b) => parseInt(a) - parseInt(b));
+            
+            // Populate Target Pin select
+            const targetPinSelect = document.getElementById('target-pin');
+            targetPinSelect.innerHTML = '<option value="">No specific pin</option>';
+            selectedPinNumbers.forEach(pin => {
+                const option = document.createElement('option');
+                option.value = `Pin ${pin}`;
+                option.textContent = `Pin ${pin}`;
+                targetPinSelect.appendChild(option);
+            });
+            
+            // Populate Pin Hit First select
+            const pinHitSelect = document.getElementById('pin-hit');
+            pinHitSelect.innerHTML = '<option value="">No pin hit / Gutter</option>';
+            selectedPinNumbers.forEach(pin => {
+                const option = document.createElement('option');
+                option.value = `Pin ${pin}`;
+                option.textContent = `Pin ${pin}`;
+                pinHitSelect.appendChild(option);
+            });
+        }
+
+        function updatePinsKnockedMax() {
+            const pinsKnockedInput = document.getElementById('pins-knocked');
+            pinsKnockedInput.max = selectedPins.size;
+            pinsKnockedInput.placeholder = `0 to ${selectedPins.size}`;
+        }
+
+        function simulateSave(data) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    console.log('Would save to Airtable:', data);
+                    resolve();
+                }, 1000);
+            });
+        }
+
+        async function saveToAirtable(data) {
+            const tableName = encodeURIComponent('Spare Attempts');
+            const url = `https://api.airtable.com/v0/${airtableConfig.baseId}/${tableName}`;
+            
+            // Format date as YYYY-MM-DD for Airtable date field
+            const today = new Date();
+            const formattedDate = today.getFullYear() + '-' + 
+                                  String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                                  String(today.getDate()).padStart(2, '0');
+            
+            const record = {
+                fields: {
+                    'Spare Configuration': data.spare,
+                    // Pin Count removed - it's calculated by Airtable formula
+                    'Date/Time': formattedDate,
+                    'Standing Board': parseInt(data.board),
+                    'Target at arrows': data.arrow ? parseInt(data.arrow) : null,
+                    'Target Pin': data.targetPin || null,
+                    'Shot Type': data.shotType,
+                    'Pin Hit First': data.pinHit || null,
+                    'Hit Location': data.hitLocation || null,
+                    'Pins Knocked Down': data.pinsKnocked
+                }
+            };
+
+            console.log('Saving to URL:', url);
+            console.log('Record data:', record);
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${airtableConfig.apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(record)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Airtable error:', errorData);
+                throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+        }
+
+        async function loadFromAirtable(spareConfig) {
+            const tableName = encodeURIComponent('Spare Attempts');
+            const filter = encodeURIComponent(`{Spare Configuration}="${spareConfig}"`);
+            const url = `https://api.airtable.com/v0/${airtableConfig.baseId}/${tableName}?filterByFormula=${filter}&sort[0][field]=Date/Time&sort[0][direction]=desc&maxRecords=5`;
+            
+            console.log('Loading from URL:', url);
+            
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${airtableConfig.apiKey}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Airtable error:', errorData);
+                throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            
+            return data.records.map(record => {
+                const fields = record.fields;
+                return {
+                    date: fields['Date/Time'] ? new Date(fields['Date/Time']).toLocaleDateString() : 'Unknown',
+                    board: fields['Standing Board'] || 'N/A',
+                    arrow: fields['Target at arrows'] ? `Arrow ${fields['Target at arrows']}` : 'No arrow',
+                    target: fields['Target Pin'] || 'No target',
+                    shotType: fields['Shot Type'] || 'Unknown',
+                    pinHit: fields['Pin Hit First'] || 'None',
+                    hitLocation: fields['Hit Location'] || 'N/A',
+                    pinsKnocked: fields['Pins Knocked Down'] || 0,
+                    success: fields['Success'] || (fields['Pins Knocked Down'] === fields['Pin Count'])
+                };
+            });
+        }
+
+        function showStatus(message, type, sectionId) {
+            const section = document.getElementById(sectionId);
+            let statusDiv = section.querySelector('.status');
+            
+            if (!statusDiv) {
+                statusDiv = document.createElement('div');
+                statusDiv.className = 'status';
+                section.insertBefore(statusDiv, section.firstChild.nextSibling);
+            }
+            
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    if (statusDiv && statusDiv.parentNode) {
+                        statusDiv.remove();
+                    }
+                }, 3000);
+            }
+        }
+
+        // Settings button (you can add this to the header if needed)
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === ',') {
+                showConfigSection();
+            }
+        });
+    </script>
+</body>
+</html>
