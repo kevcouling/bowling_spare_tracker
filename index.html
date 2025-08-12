@@ -294,7 +294,6 @@
         <div class="header">
             <img src="https://kevcouling.github.io/bowling_spare_tracker/icon.png" alt="" class="header-icon">
             <h1>Spare Tracker</h1>
-            <p>Select your spare configuration</p>
             <button class="settings-btn" id="settings-btn" title="Settings">⚙️</button>
         </div>
 
@@ -334,8 +333,9 @@
 
         <!-- Previous Attempts Section -->
         <div class="section hidden" id="history-section">
-            <h2>Previous Attempts</h2>
-            <div class="current-spare" id="history-spare"></div>
+            <div class="section-header">
+                <h2 id="history-spare-title">Previous Attempts</h2>
+            </div>
             <div id="status-message"></div>
             <div class="attempts-list" id="attempts-list">
                 <!-- Previous attempts will be loaded here -->
@@ -514,13 +514,14 @@
 
             // Update spare displays in other sections
             if (currentSpare) {
-                document.getElementById('history-spare').textContent = `Spare: ${currentSpare}`;
-                document.getElementById('recording-spare').textContent = `Spare: ${currentSpare}`;
+                // Update history section header
+                document.getElementById('history-spare-title').textContent = `Previous Attempts - Spare: ${currentSpare}`;
                 
                 // Populate dynamic select fields when showing recording section
                 if (sectionId === 'recording-section') {
                     populateSpareBasedSelects();
                     updatePinsKnockedMax();
+                    setupRecordingSection();
                 }
             }
         }
@@ -562,6 +563,7 @@
 
             try {
                 const attempts = await loadFromAirtable(currentSpare);
+                currentAttemptData = attempts; // Store for use in recording section
                 displayAttempts(attempts);
                 
                 if (attempts.length > 0) {
@@ -622,8 +624,19 @@
                 const attemptDiv = document.createElement('div');
                 attemptDiv.className = `attempt-item ${attempt.success ? '' : 'failed'}`;
                 
-                const successIcon = attempt.success ? '✅' : '❌';
-                const resultText = attempt.success ? 'SUCCESS' : 'MISSED';
+                let successIcon, resultText;
+                if (attempt.success) {
+                    successIcon = '✅';
+                    resultText = 'SUCCESS';
+                } else if (attempt.successPercentage > 0) {
+                    successIcon = '<span class="success-indicator" style="color: #ff9800;">🟠</span>';
+                    resultText = `PARTIAL (${attempt.successPercentage}%)`;
+                } else {
+                    successIcon = '❌';
+                    resultText = 'MISSED';
+                }
+                
+                const arrowText = attempt.arrow !== 'No arrow' ? `Arrow ${attempt.arrow}` : 'No arrow';
                 
                 attemptDiv.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -631,7 +644,7 @@
                         <span style="font-size: 12px; color: #ccc;">${attempt.date}</span>
                     </div>
                     <div class="attempt-details">
-                        Board: ${attempt.board} | Arrow: ${attempt.arrow} | Target: ${attempt.target}<br>
+                        Board: ${attempt.board} | ${arrowText} | Target: ${attempt.target}<br>
                         Shot: ${attempt.shotType} | Hit: ${attempt.pinHit} (${attempt.hitLocation})<br>
                         Knocked down: ${attempt.pinsKnocked}/${selectedPins.size}
                     </div>
@@ -740,6 +753,69 @@
             pinsKnockedInput.placeholder = `0 to ${selectedPins.size}`;
         }
 
+        // Store attempt data globally for use in recording section
+        let currentAttemptData = null;
+
+        function setupRecordingSection() {
+            if (!currentAttemptData) return;
+
+            const spareStatsDiv = document.getElementById('spare-stats');
+            const attemptMessageDiv = document.getElementById('attempt-message');
+            
+            const totalAttempts = currentAttemptData.length;
+            
+            if (totalAttempts === 0) {
+                // First attempt
+                spareStatsDiv.innerHTML = `
+                    <div class="stat-line">Attempts at <span class="stat-value">${currentSpare}</span>: <span class="stat-value">0</span></div>
+                    <div class="stat-line">Best result: <span class="stat-value">No previous attempts</span></div>
+                `;
+                
+                attemptMessageDiv.className = 'attempt-message first-attempt';
+                attemptMessageDiv.textContent = `This is your first attempt at ${currentSpare}. Good luck!`;
+                
+                // Clear all form fields
+                clearForm();
+            } else {
+                // Has previous attempts
+                const bestSuccess = Math.max(...currentAttemptData.map(a => a.successPercentage));
+                const latestFullSuccess = currentAttemptData.find(a => a.success);
+                const bestResultText = latestFullSuccess ? 
+                    `${bestSuccess}% on ${latestFullSuccess.date}` : 
+                    `${bestSuccess}% (no full success yet)`;
+                
+                spareStatsDiv.innerHTML = `
+                    <div class="stat-line">Attempts at <span class="stat-value">${currentSpare}</span>: <span class="stat-value">${totalAttempts}</span></div>
+                    <div class="stat-line">Best result: <span class="stat-value">${bestResultText}</span></div>
+                `;
+                
+                attemptMessageDiv.className = 'attempt-message';
+                
+                if (latestFullSuccess) {
+                    // Prefill with most recent successful attempt
+                    attemptMessageDiv.textContent = `Prefilled with your most recent successful approach. Modify as needed.`;
+                    
+                    document.getElementById('board-position').value = latestFullSuccess.rawData['Standing Board'] || '';
+                    document.getElementById('target-arrow').value = latestFullSuccess.rawData['Target at arrows'] || '';
+                    
+                    // Set select fields
+                    const targetPinSelect = document.getElementById('target-pin');
+                    const shotTypeSelect = document.getElementById('shot-type');
+                    
+                    if (latestFullSuccess.rawData['Target Pin']) {
+                        targetPinSelect.value = latestFullSuccess.rawData['Target Pin'];
+                    }
+                    
+                    if (latestFullSuccess.rawData['Shot Type']) {
+                        shotTypeSelect.value = latestFullSuccess.rawData['Shot Type'];
+                    }
+                } else {
+                    attemptMessageDiv.textContent = `No previous successful attempts. Try a new approach!`;
+                    clearForm();
+                }
+            }
+        }
+
         function simulateSave(data) {
             return new Promise(resolve => {
                 setTimeout(() => {
@@ -798,7 +874,8 @@
         async function loadFromAirtable(spareConfig) {
             const tableName = encodeURIComponent('Spare Attempts');
             const filter = encodeURIComponent(`{Spare Configuration}="${spareConfig}"`);
-            const url = `https://api.airtable.com/v0/${airtableConfig.baseId}/${tableName}?filterByFormula=${filter}&sort[0][field]=Date/Time&sort[0][direction]=desc&maxRecords=5`;
+            // Sort by Success DESC, then by Date/Time DESC to get most successful first, then most recent
+            const url = `https://api.airtable.com/v0/${airtableConfig.baseId}/${tableName}?filterByFormula=${filter}&sort[0][field]=Success&sort[0][direction]=desc&sort[1][field]=Date/Time&sort[1][direction]=desc&maxRecords=10`;
             
             console.log('Loading from URL:', url);
             
@@ -818,16 +895,22 @@
             
             return data.records.map(record => {
                 const fields = record.fields;
+                const successValue = fields['Success'] || 0;
+                const isFullSuccess = successValue >= 1;
+                const successPercentage = Math.round(successValue * 100);
+                
                 return {
                     date: fields['Date/Time'] ? new Date(fields['Date/Time']).toLocaleDateString() : 'Unknown',
                     board: fields['Standing Board'] || 'N/A',
-                    arrow: fields['Target at arrows'] ? `Arrow ${fields['Target at arrows']}` : 'No arrow',
+                    arrow: fields['Target at arrows'] ? fields['Target at arrows'] : 'No arrow',
                     target: fields['Target Pin'] || 'No target',
                     shotType: fields['Shot Type'] || 'Unknown',
                     pinHit: fields['Pin Hit First'] || 'None',
                     hitLocation: fields['Hit Location'] || 'N/A',
                     pinsKnocked: fields['Pins Knocked Down'] || 0,
-                    success: fields['Success'] || (fields['Pins Knocked Down'] === fields['Pin Count'])
+                    success: isFullSuccess,
+                    successPercentage: successPercentage,
+                    rawData: fields // Store raw data for prefilling forms
                 };
             });
         }
