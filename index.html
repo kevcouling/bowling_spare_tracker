@@ -1,14 +1,243 @@
-*Recording a new attempt
--Above the 'Record Your Attempt' text add the following left justified text and data (please make the data stand out): 
-  -"Attempts at 2-4-5: [number of records for this spare]" 
-  -"Best result: [Highest percentage Success] on [latest date where Success was 100%] 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bowling Spare Tracker</title>
+    
+    <!-- App Icons -->
+    <link rel="shortcut icon" href="https://kevcouling.github.io/bowling_spare_tracker/icon.png">
+    <link rel="icon" href="https://kevcouling.github.io/bowling_spare_tracker/icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://kevcouling.github.io/bowling_spare_tracker/icon.png">
+    
+    <!-- PWA settings -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Spare Tracker">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#10A8AC">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #10A8AC 0%, #0d8a8d 100%);
+            color: white;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 400px; margin: 0 auto; padding: 0 10px; }
+        .header { text-align: center; margin-bottom: 30px; position: relative; }
+        .header-icon { width: 48px; height: 48px; margin-bottom: 10px; border-radius: 8px; }
+        .header h1 { color: #FBE44E; margin-bottom: 5px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .version { font-size: 12px; color: rgba(255, 255, 255, 0.7); margin-bottom: 10px; }
+        .settings-btn { position: absolute; top: 0; right: 0; background: none; border: none; font-size: 24px; cursor: pointer; padding: 5px; border-radius: 5px; }
+        .section { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+        .section.hidden { display: none; }
+        .section h2 { color: #FBE44E; margin-bottom: 15px; font-size: 18px; }
+        .spare-stats { background: rgba(251, 228, 78, 0.1); border: 1px solid rgba(251, 228, 78, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 15px; }
+        .stat-value { font-weight: bold; color: #FBE44E; }
+        .attempt-message { background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 12px; margin-bottom: 20px; text-align: center; font-style: italic; }
+        .attempt-message.first-attempt { background: rgba(251, 228, 78, 0.2); color: #FBE44E; font-weight: bold; }
+        .pin-area { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 20px; }
+        .pin-row { display: flex; gap: 8px; }
+        .pin { width: 35px; height: 50px; background-color: #FFFFFF; border: 3px solid #C92D1A; border-radius: 5px 5px 15px 15px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #000000; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .pin.selected { background-color: #C92D1A; color: #FFFFFF; border-color: #FBE44E; transform: scale(1.05); }
+        .current-spare { text-align: center; font-size: 18px; font-weight: bold; color: #FBE44E; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #FBE44E; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 5px; background: rgba(255, 255, 255, 0.9); color: #000000; font-size: 16px; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-primary { background: linear-gradient(135deg, #FBE44E 0%, #e6d344 100%); color: #000000; }
+        .btn-secondary { background: rgba(255, 255, 255, 0.2); color: white; }
+        .result-separator { margin: 20px 0 15px 0; padding-top: 15px; border-top: 2px solid rgba(251, 228, 78, 0.3); }
+        .result-separator h3 { color: #FBE44E; font-size: 16px; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://kevcouling.github.io/bowling_spare_tracker/icon.png" alt="" class="header-icon">
+            <h1>Spare Tracker</h1>
+            <div class="version">v2.4 - Fixed</div>
+            <button class="settings-btn" id="settings-btn">⚙️</button>
+        </div>
 
--Immediately below "Record Your Attempt" add conditional text as follows: 
-  -where the spare hasn't been recorded before: "This is your first attempt at 2-4-5: Good Luck!" and leave all fields blank. 
-  -where the spare has been attempted before and Success is greater than zero "Your best result is [Highest Success value]%. Here's how you did it:" then prefill the following fields with data from the highest Success rate attempt. Where more than one attempt has the same Success value, show data from the most recent one (users should be able to either leave this data as is or amend if they're trying something different): 
-     -Standing Board 
-     -Target at Arrow 
-     -Target Pin 
-     -Shot Type
+        <div class="section" id="pin-selection">
+            <h2>Select Standing Pins</h2>
+            <div class="pin-area">
+                <div class="pin-row">
+                    <div class="pin" data-pin="7">7</div>
+                    <div class="pin" data-pin="8">8</div>
+                    <div class="pin" data-pin="9">9</div>
+                    <div class="pin" data-pin="10">10</div>
+                </div>
+                <div class="pin-row">
+                    <div class="pin" data-pin="4">4</div>
+                    <div class="pin" data-pin="5">5</div>
+                    <div class="pin" data-pin="6">6</div>
+                </div>
+                <div class="pin-row">
+                    <div class="pin" data-pin="2">2</div>
+                    <div class="pin" data-pin="3">3</div>
+                </div>
+                <div class="pin-row">
+                    <div class="pin" data-pin="1">1</div>
+                </div>
+            </div>
+            <div class="current-spare" id="current-spare">No pins selected</div>
+            <button class="btn btn-primary" id="check-history" disabled>Check Previous Attempts</button>
+            <button class="btn btn-secondary" id="clear-pins">Clear All</button>
+        </div>
 
--Between Shot Type and Pin Hit First fields add text "Record your result below"
+        <div class="section hidden" id="recording-section">
+            <div class="spare-stats" id="spare-stats"></div>
+            <h2>Record Your Attempt</h2>
+            <div class="attempt-message" id="attempt-message"></div>
+            
+            <div class="form-group">
+                <label for="board-position">Standing Board (1-39)</label>
+                <input type="number" id="board-position" min="1" max="39" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="target-arrow">Target at arrows (1-39)</label>
+                <input type="number" id="target-arrow" min="1" max="39">
+            </div>
+            
+            <div class="form-group">
+                <label for="target-pin">Target Pin</label>
+                <select id="target-pin"></select>
+            </div>
+            
+            <div class="form-group">
+                <label for="shot-type">Shot Type</label>
+                <select id="shot-type" required>
+                    <option value="">Select shot type</option>
+                    <option value="Straight">Straight</option>
+                    <option value="Hook">Hook</option>
+                </select>
+            </div>
+
+            <div class="result-separator">
+                <h3>Record your result below:</h3>
+            </div>
+            
+            <div class="form-group">
+                <label for="pin-hit">Pin Hit First</label>
+                <select id="pin-hit"></select>
+            </div>
+            
+            <div class="form-group">
+                <label for="pins-knocked">Pins Knocked Down</label>
+                <input type="number" id="pins-knocked" min="0" required>
+            </div>
+            
+            <button class="btn btn-primary" id="save-attempt">Save Attempt</button>
+        </div>
+    </div>
+
+    <script>
+        let selectedPins = new Set();
+        let currentSpare = '';
+        let currentAttemptData = null;
+        let airtableConfig = {
+            baseId: localStorage.getItem('airtable_base_id') || '',
+            apiKey: localStorage.getItem('airtable_api_key') || ''
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!airtableConfig.baseId || !airtableConfig.apiKey) {
+                showConfigSection();
+                return;
+            }
+            initializePinSelection();
+            initializeEventListeners();
+        });
+
+        function initializePinSelection() {
+            document.querySelectorAll('.pin').forEach(pin => {
+                pin.addEventListener('click', function() {
+                    const pinNumber = this.dataset.pin;
+                    if (selectedPins.has(pinNumber)) {
+                        selectedPins.delete(pinNumber);
+                        this.classList.remove('selected');
+                    } else {
+                        selectedPins.add(pinNumber);
+                        this.classList.add('selected');
+                    }
+                    updateCurrentSpareDisplay();
+                });
+            });
+        }
+
+        function updateCurrentSpareDisplay() {
+            if (selectedPins.size === 0) {
+                currentSpare = '';
+                document.getElementById('current-spare').textContent = 'No pins selected';
+                document.getElementById('check-history').disabled = true;
+            } else {
+                currentSpare = Array.from(selectedPins).sort((a, b) => parseInt(a) - parseInt(b)).join('-');
+                document.getElementById('current-spare').textContent = `Current spare: ${currentSpare}`;
+                document.getElementById('check-history').disabled = false;
+            }
+        }
+
+        function initializeEventListeners() {
+            document.getElementById('check-history').addEventListener('click', () => {
+                document.getElementById('pin-selection').classList.add('hidden');
+                document.getElementById('recording-section').classList.remove('hidden');
+                setupRecordingSection();
+            });
+            
+            document.getElementById('clear-pins').addEventListener('click', () => {
+                selectedPins.clear();
+                document.querySelectorAll('.pin').forEach(pin => pin.classList.remove('selected'));
+                updateCurrentSpareDisplay();
+            });
+        }
+
+        function setupRecordingSection() {
+            const spareStatsDiv = document.getElementById('spare-stats');
+            const attemptMessageDiv = document.getElementById('attempt-message');
+            
+            // For demo: show first attempt message
+            spareStatsDiv.innerHTML = `
+                <div>Attempts at <span class="stat-value">${currentSpare}</span>: <span class="stat-value">0</span></div>
+                <div>Best result: <span class="stat-value">No previous attempts</span></div>
+            `;
+            
+            attemptMessageDiv.className = 'attempt-message first-attempt';
+            attemptMessageDiv.textContent = `This is your first attempt at ${currentSpare}. Good luck!`;
+            
+            // Populate dropdowns
+            populateSpareBasedSelects();
+        }
+
+        function populateSpareBasedSelects() {
+            const selectedPinNumbers = Array.from(selectedPins).sort((a, b) => parseInt(a) - parseInt(b));
+            
+            const targetPinSelect = document.getElementById('target-pin');
+            targetPinSelect.innerHTML = '<option value="">No specific pin</option>';
+            selectedPinNumbers.forEach(pin => {
+                const option = document.createElement('option');
+                option.value = `Pin ${pin}`;
+                option.textContent = `Pin ${pin}`;
+                targetPinSelect.appendChild(option);
+            });
+            
+            const pinHitSelect = document.getElementById('pin-hit');
+            pinHitSelect.innerHTML = '<option value="">No pin hit / Gutter</option>';
+            selectedPinNumbers.forEach(pin => {
+                const option = document.createElement('option');
+                option.value = `Pin ${pin}`;
+                option.textContent = `Pin ${pin}`;
+                pinHitSelect.appendChild(option);
+            });
+        }
+
+        function showConfigSection() {
+            alert('Please configure your Airtable settings first!');
+        }
+    </script>
+</body>
+</html>
