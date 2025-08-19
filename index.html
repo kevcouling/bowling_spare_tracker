@@ -30,7 +30,23 @@
         .header-icon { width: 48px; height: 48px; margin-bottom: 10px; border-radius: 8px; }
         .header h1 { color: #FBE44E; margin-bottom: 5px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
         .version { font-size: 12px; color: rgba(255, 255, 255, 0.7); margin-bottom: 10px; }
-        .settings-btn { position: absolute; top: 0; right: 0; background: none; border: none; font-size: 24px; cursor: pointer; padding: 5px; border-radius: 5px; }
+        .settings-btn { 
+            position: absolute; 
+            top: 0; 
+            right: 0; 
+            background: none; 
+            border: none; 
+            font-size: 24px; 
+            cursor: pointer; 
+            padding: 10px; 
+            border-radius: 5px; 
+            min-width: 44px; 
+            min-height: 44px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
         .section { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
         .section.hidden { display: none; }
         .section h2 { color: #FBE44E; margin-bottom: 15px; font-size: 18px; }
@@ -58,7 +74,7 @@
         <div class="header">
             <img src="https://kevcouling.github.io/bowling_spare_tracker/icon.png" alt="" class="header-icon">
             <h1>Spare Tracker</h1>
-            <div class="version">v2.4 - Fixed</div>
+            <div class="version">v2.5 - Navigation Fixed</div>
             <button class="settings-btn" id="settings-btn">⚙️</button>
         </div>
 
@@ -133,6 +149,7 @@
             </div>
             
             <button class="btn btn-primary" id="save-attempt">Save Attempt</button>
+            <button class="btn btn-secondary" id="back-to-pins">Back to Pin Selection</button>
         </div>
     </div>
 
@@ -194,6 +211,27 @@
                 document.querySelectorAll('.pin').forEach(pin => pin.classList.remove('selected'));
                 updateCurrentSpareDisplay();
             });
+
+            // Back to pin selection button
+            document.getElementById('back-to-pins').addEventListener('click', () => {
+                document.getElementById('recording-section').classList.add('hidden');
+                document.getElementById('pin-selection').classList.remove('hidden');
+            });
+
+            // Settings button - make it more robust
+            const settingsBtn = document.getElementById('settings-btn');
+            if (settingsBtn) {
+                // Remove any existing listeners first
+                settingsBtn.removeEventListener('click', showConfigSection);
+                // Add the listener
+                settingsBtn.addEventListener('click', showConfigSection);
+                
+                // Also add touch events for mobile
+                settingsBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    showConfigSection();
+                });
+            }
         }
 
         function setupRecordingSection() {
@@ -236,7 +274,17 @@
         }
 
         function showConfigSection() {
-            alert('Please configure your Airtable settings first!');
+            // Create a simple config interface since we don't have the full section in this simplified version
+            const baseId = prompt('Enter your Airtable Base ID:') || '';
+            const apiKey = prompt('Enter your Airtable API Key:') || '';
+            
+            if (baseId && apiKey) {
+                airtableConfig.baseId = baseId;
+                airtableConfig.apiKey = apiKey;
+                localStorage.setItem('airtable_base_id', baseId);
+                localStorage.setItem('airtable_api_key', apiKey);
+                alert('Configuration saved successfully!');
+            }
         }
     </script>
 </body>
