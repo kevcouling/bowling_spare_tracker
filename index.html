@@ -74,7 +74,7 @@
         <div class="header">
             <img src="https://kevcouling.github.io/bowling_spare_tracker/icon.png" alt="" class="header-icon">
             <h1>Spare Tracker</h1>
-            <div class="version">v2.5 - Navigation Fixed</div>
+            <div class="version">v2.6 - Better Settings</div>
             <button class="settings-btn" id="settings-btn">⚙️</button>
         </div>
 
@@ -150,6 +150,32 @@
             
             <button class="btn btn-primary" id="save-attempt">Save Attempt</button>
             <button class="btn btn-secondary" id="back-to-pins">Back to Pin Selection</button>
+        </div>
+
+        <div class="section hidden" id="config-section">
+            <h2>Airtable Configuration</h2>
+            <p style="margin-bottom: 15px; font-size: 14px; opacity: 0.9;">
+                Enter your Airtable credentials to connect the app to your database.
+            </p>
+            
+            <div class="form-group">
+                <label for="base-id">Base ID</label>
+                <input type="text" id="base-id" placeholder="appXXXXXXXXXXXXXX">
+                <div style="font-size: 12px; margin-top: 5px; opacity: 0.7;">
+                    Find this at airtable.com/api → select your base
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="api-key">API Key</label>
+                <input type="password" id="api-key" placeholder="patXXXXXXXXXXXXXX">
+                <div style="font-size: 12px; margin-top: 5px; opacity: 0.7;">
+                    Create at airtable.com/create/tokens
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" id="save-config">Save Configuration</button>
+            <button class="btn btn-secondary" id="cancel-config">Cancel</button>
         </div>
     </div>
 
@@ -232,6 +258,13 @@
                     showConfigSection();
                 });
             }
+
+            // Configuration buttons
+            document.getElementById('save-config').addEventListener('click', saveConfiguration);
+            document.getElementById('cancel-config').addEventListener('click', () => {
+                document.getElementById('config-section').classList.add('hidden');
+                document.getElementById('pin-selection').classList.remove('hidden');
+            });
         }
 
         function setupRecordingSection() {
@@ -274,17 +307,50 @@
         }
 
         function showConfigSection() {
-            // Create a simple config interface since we don't have the full section in this simplified version
-            const baseId = prompt('Enter your Airtable Base ID:') || '';
-            const apiKey = prompt('Enter your Airtable API Key:') || '';
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.add('hidden');
+            });
             
-            if (baseId && apiKey) {
-                airtableConfig.baseId = baseId;
-                airtableConfig.apiKey = apiKey;
-                localStorage.setItem('airtable_base_id', baseId);
-                localStorage.setItem('airtable_api_key', apiKey);
-                alert('Configuration saved successfully!');
+            // Show config section
+            document.getElementById('config-section').classList.remove('hidden');
+            
+            // Pre-fill existing values
+            document.getElementById('base-id').value = airtableConfig.baseId || '';
+            document.getElementById('api-key').value = airtableConfig.apiKey || '';
+        }
+
+        function saveConfiguration() {
+            const baseId = document.getElementById('base-id').value.trim();
+            const apiKey = document.getElementById('api-key').value.trim();
+
+            if (!baseId || !apiKey) {
+                alert('Please enter both Base ID and API Key');
+                return;
             }
+
+            // Validate format
+            if (!baseId.startsWith('app') || baseId.length !== 17) {
+                alert('Base ID should start with "app" and be 17 characters long');
+                return;
+            }
+
+            if (!apiKey.startsWith('pat') && !apiKey.startsWith('key')) {
+                alert('API Key should start with "pat" (new tokens) or "key" (legacy tokens)');
+                return;
+            }
+
+            airtableConfig.baseId = baseId;
+            airtableConfig.apiKey = apiKey;
+
+            localStorage.setItem('airtable_base_id', baseId);
+            localStorage.setItem('airtable_api_key', apiKey);
+
+            alert('Configuration saved successfully!');
+            
+            // Return to pin selection
+            document.getElementById('config-section').classList.add('hidden');
+            document.getElementById('pin-selection').classList.remove('hidden');
         }
     </script>
 </body>
