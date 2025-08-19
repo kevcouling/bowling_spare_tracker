@@ -74,7 +74,7 @@
         <div class="header">
             <img src="https://kevcouling.github.io/bowling_spare_tracker/icon.png" alt="" class="header-icon">
             <h1>Spare Tracker</h1>
-            <div class="version">v2.6 - Better Settings</div>
+            <div class="version">v2.7 - Fixed Airtable</div>
             <button class="settings-btn" id="settings-btn">⚙️</button>
         </div>
 
@@ -226,11 +226,7 @@
         }
 
         function initializeEventListeners() {
-            document.getElementById('check-history').addEventListener('click', () => {
-                document.getElementById('pin-selection').classList.add('hidden');
-                document.getElementById('recording-section').classList.remove('hidden');
-                setupRecordingSection();
-            });
+            document.getElementById('check-history').addEventListener('click', loadSpareHistory);
             
             document.getElementById('clear-pins').addEventListener('click', () => {
                 selectedPins.clear();
@@ -265,23 +261,267 @@
                 document.getElementById('config-section').classList.add('hidden');
                 document.getElementById('pin-selection').classList.remove('hidden');
             });
+
+            // Save attempt button
+            document.getElementById('save-attempt').addEventListener('click', saveAttempt);
+        }
+
+        async function loadSpareHistory() {
+            if (!airtableConfig.baseId || !airtableConfig.apiKey) {
+                showConfigSection();
+                return;
+            }
+
+            // Show recording section with loading state
+            document.getElementById('pin-selection').classList.add('hidden');
+            document.getElementById('recording-section').classList.remove('hidden');
+            
+            const spareStatsDiv = document.getElementById('spare-stats');
+            const attemptMessageDiv = document.getElementById('attempt-message');
+            
+            spareStatsDiv.innerHTML = `
+                <div>Attempts at <span class="stat-value">${currentSpare}</span>: <span class="stat-value">Loading...</span></div>
+                <div>Best result: <span class="stat-value">Loading...</span></div>
+            `;
+            attemptMessageDiv.textContent = 'Loading previous attempts...';
+
+            try {
+                const attempts = await loadFromAirtable(currentSpare);
+                currentAttemptData = attempts;
+                setupRecordingSection();
+            } catch (error) {
+                console.error('Error loading history:', error);
+                spareStatsDiv.innerHTML = `
+                    <div>Attempts at <span class="stat-value">${currentSpare}</span>: <span class="stat-value">Error</span></div>
+                    <div>Best result: <span class="stat-value">Could not load data</span></div>
+                `;
+                attemptMessageDiv.textContent = `Error loading data: ${error.message}`;
+                currentAttemptData = [];
+                setupRecordingSection();
+            }
         }
 
         function setupRecordingSection() {
             const spareStatsDiv = document.getElementById('spare-stats');
             const attemptMessageDiv = document.getElementById('attempt-message');
             
-            // For demo: show first attempt message
+            if (!currentAttemptData) {
+                return;
+            }
+            
+            const totalAttempts = currentAttemptData.length;
+            
+            // CONDITION 1: First attempt (no previous records)
+            if (totalAttempts === 0) {
+                spareStatsDiv.innerHTML = `
+                    <div>Attempts at <span class="stat-value">${currentSpare}</span>: <span class="stat-value">0</span></div>
+                    <div>Best result: <span class="stat-value">No previous attempts</span></div>
+                `;
+                
+                attemptMessageDiv.className = 'attempt-message first-attempt';
+                attemptMessageDiv.textContent = `This is your first attempt at ${currentSpare}. Good luck!`;
+                
+                clearForm();
+                populateSpareBasedSelects();
+                return;
+            }
+            
+            // Has previous attempts - get the highest success percentage
+            const bestSuccessPercentage = Math.max(...currentAttemptData.map(a => a.successPercentage));
+            
+            // Find the most recent attempt that achieved the best success rate
+            const bestAttempts = currentAttemptData.filter(a => a.successPercentage === bestSuccessPercentage);
+            const mostRecentBest = bestAttempts[0];
+            
+            // For display: find latest date where Success was 100%
+            const fullSuccessAttempt = currentAttemptData.find(a => a.success);
+            const bestResultText = fullSuccessAttempt ? 
+                `${bestSuccessPercentage}% on ${fullSuccessAttempt.date}` : 
+                `${bestSuccessPercentage}% (no full success yet)`;
+            
+            // Always show the statistics
             spareStatsDiv.innerHTML = `
-                <div>Attempts at <span class="stat-value">${currentSpare}</span>: <span class="stat-value">0</span></div>
-                <div>Best result: <span class="stat-value">No previous attempts</span></div>
+                <div>Attempts at <span class="stat-value">${currentSpare}</span>: <span class="stat-value">${totalAttempts}</span></div>
+                <div>Best result: <span class="stat-value">${bestResultText}</span></div>
             `;
             
-            attemptMessageDiv.className = 'attempt-message first-attempt';
-            attemptMessageDiv.textContent = `This is your first attempt at ${currentSpare}. Good luck!`;
-            
-            // Populate dropdowns
+            // Populate dropdowns first
             populateSpareBasedSelects();
+            
+            // CONDITION 2 & 3: Has attempts with some success
+            if (bestSuccessPercentage > 0) {
+                attemptMessageDiv.className = 'attempt-message';
+                attemptMessageDiv.textContent = `Your best result is ${bestSuccessPercentage}%. Here's how you did it:`;
+                
+                // Prefill with the most recent attempt that achieved the best success rate
+                if (mostRecentBest.rawData['Standing Board']) {
+                    document.getElementById('board-position').value = mostRecentBest.rawData['Standing Board'];
+                }
+                if (mostRecentBest.rawData['Target at arrows']) {
+                    document.getElementById('target-arrow').value = mostRecentBest.rawData['Target at arrows'];
+                }
+                
+                // Set select fields with delay
+                setTimeout(() => {
+                    if (mostRecentBest.rawData['Target Pin']) {
+                        document.getElementById('target-pin').value = mostRecentBest.rawData['Target Pin'];
+                    }
+                    if (mostRecentBest.rawData['Shot Type']) {
+                        document.getElementById('shot-type').value = mostRecentBest.rawData['Shot Type'];
+                    }
+                }, 100);
+            } else {
+                attemptMessageDiv.className = 'attempt-message';
+                attemptMessageDiv.textContent = `No previous successful attempts. Try a new approach!`;
+                clearForm();
+            }
+        }
+
+        async function loadFromAirtable(spareConfig) {
+            const tableName = encodeURIComponent('Spare Attempts');
+            const filter = encodeURIComponent(`{Spare Configuration}="${spareConfig}"`);
+            const url = `https://api.airtable.com/v0/${airtableConfig.baseId}/${tableName}?filterByFormula=${filter}&sort[0][field]=Success&sort[0][direction]=desc&sort[1][field]=Date/Time&sort[1][direction]=desc&maxRecords=10`;
+            
+            console.log('Loading from URL:', url);
+            
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${airtableConfig.apiKey}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Airtable error:', errorData);
+                throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            
+            return data.records.map(record => {
+                const fields = record.fields;
+                const successValue = fields['Success'] || 0;
+                const isFullSuccess = successValue >= 1;
+                const successPercentage = Math.round(successValue * 100);
+                
+                return {
+                    date: fields['Date/Time'] ? new Date(fields['Date/Time']).toLocaleDateString() : 'Unknown',
+                    board: fields['Standing Board'] || 'N/A',
+                    arrow: fields['Target at arrows'] ? fields['Target at arrows'] : 'No arrow',
+                    target: fields['Target Pin'] || 'No target',
+                    shotType: fields['Shot Type'] || 'Unknown',
+                    pinHit: fields['Pin Hit First'] || 'None',
+                    hitLocation: fields['Hit Location'] || 'N/A',
+                    pinsKnocked: fields['Pins Knocked Down'] || 0,
+                    success: isFullSuccess,
+                    successPercentage: successPercentage,
+                    rawData: fields
+                };
+            });
+        }
+
+        async function saveAttempt() {
+            if (!validateForm()) return;
+
+            const formData = {
+                spare: currentSpare,
+                board: document.getElementById('board-position').value,
+                arrow: document.getElementById('target-arrow').value,
+                targetPin: document.getElementById('target-pin').value,
+                shotType: document.getElementById('shot-type').value,
+                pinHit: document.getElementById('pin-hit').value,
+                hitLocation: document.getElementById('hit-location').value,
+                pinsKnocked: parseInt(document.getElementById('pins-knocked').value)
+            };
+
+            try {
+                await saveToAirtable(formData);
+                alert('Attempt saved successfully!');
+                
+                // Clear form and return to pin selection
+                clearForm();
+                selectedPins.clear();
+                document.querySelectorAll('.pin').forEach(pin => pin.classList.remove('selected'));
+                updateCurrentSpareDisplay();
+                document.getElementById('recording-section').classList.add('hidden');
+                document.getElementById('pin-selection').classList.remove('hidden');
+                
+            } catch (error) {
+                alert('Error saving attempt: ' + error.message);
+            }
+        }
+
+        async function saveToAirtable(data) {
+            const tableName = encodeURIComponent('Spare Attempts');
+            const url = `https://api.airtable.com/v0/${airtableConfig.baseId}/${tableName}`;
+            
+            const today = new Date();
+            const formattedDate = today.getFullYear() + '-' + 
+                                  String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                                  String(today.getDate()).padStart(2, '0');
+            
+            const record = {
+                fields: {
+                    'Spare Configuration': data.spare,
+                    'Date/Time': formattedDate,
+                    'Standing Board': parseInt(data.board),
+                    'Target at arrows': data.arrow ? parseInt(data.arrow) : null,
+                    'Target Pin': data.targetPin || null,
+                    'Shot Type': data.shotType,
+                    'Pin Hit First': data.pinHit || null,
+                    'Hit Location': data.hitLocation || null,
+                    'Pins Knocked Down': data.pinsKnocked
+                }
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${airtableConfig.apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(record)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+        }
+
+        function validateForm() {
+            const required = ['board-position', 'shot-type', 'pins-knocked'];
+            
+            for (let field of required) {
+                const element = document.getElementById(field);
+                if (!element.value.trim()) {
+                    alert(`Please fill in the ${element.previousElementSibling.textContent} field`);
+                    element.focus();
+                    return false;
+                }
+            }
+            
+            const pinsKnocked = parseInt(document.getElementById('pins-knocked').value);
+            const maxPins = selectedPins.size;
+            
+            if (pinsKnocked > maxPins) {
+                alert(`Pins knocked down (${pinsKnocked}) cannot exceed pins in spare (${maxPins})`);
+                document.getElementById('pins-knocked').focus();
+                return false;
+            }
+            
+            return true;
+        }
+
+        function clearForm() {
+            document.getElementById('board-position').value = '';
+            document.getElementById('target-arrow').value = '';
+            document.getElementById('target-pin').value = '';
+            document.getElementById('shot-type').value = '';
+            document.getElementById('pin-hit').value = '';
+            document.getElementById('pins-knocked').value = '';
         }
 
         function populateSpareBasedSelects() {
